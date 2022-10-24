@@ -1,6 +1,11 @@
 package znet
 
-import "myzinx/ziface"
+import (
+	"fmt"
+	"myzinx/ziface"
+	"net"
+	"time"
+)
 
 // IServer的接口实现
 type Server struct {
@@ -15,13 +20,74 @@ type Server struct {
 }
 
 // 开启服务
-func (s *Server) Start() {}
+func (s *Server) Start() {
+	fmt.Printf("[start] server listenner at ip %s, port: %d is starting", s.IP, s.Port)
+
+	//避免单个阻塞，支持多客户端连接
+	go func() {
+		//1、获取一个tcp的addr
+		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
+		if err != nil {
+			fmt.Println("resolve tcp addr error: ", err)
+			return
+		}
+		//2、监听服务器的地址
+		listenner, err := net.ListenTCP(s.IPVersion, addr)
+		if err != nil {
+			fmt.Println("listenTcp error: ", err)
+			return
+		}
+		fmt.Println("start zinx server success,", s.Name, " is listening")
+		//3、阻塞的等待客户端连接，处理客户端连接业务
+		for {
+			//如果有客户端连接过来，阻塞会返回
+			conn, err := listenner.AcceptTCP()
+			if err != nil {
+				fmt.Println("accept error", err)
+				continue
+			}
+
+			//服务器已经与客户端连接
+			go func() {
+				for {
+
+					buf := make([]byte, 512)
+					cnt, err := conn.Read(buf)
+					if err != nil {
+						fmt.Println("recv buf error", err)
+						continue
+					}
+
+					//回显功能
+					if _, err := conn.Write(buf[:cnt]); err != nil {
+						fmt.Println("write error", err)
+						continue
+					}
+				}
+			}()
+		}
+	}()
+
+}
 
 // 停止服务
-func (s *Server) Stop() {}
+func (s *Server) Stop() {
+	fmt.Println("[stop] ", s.Name)
+
+}
 
 // 运行服务
-func (s *Server) Serve() {}
+func (s *Server) Serve() {
+	//启动服务功能，只进行监听和处理功能
+	s.Start()
+
+	//todo:可做一些启动服务器之后的额外业务
+
+	//处于阻塞
+	for {
+		time.Sleep(time.Second * 10)
+	}
+}
 
 // 初始化server
 func NewServer(name string) ziface.IServer {
