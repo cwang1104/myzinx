@@ -11,8 +11,9 @@ type Connection struct {
 	ConnID uint32
 
 	IsClosed bool
-	//当前连接所绑定的方法
-	handleApi ziface.HandleFunc
+
+	//该链接的处理方法router
+	Router ziface.IRouter
 
 	//告知当前连接已经退出/停止的 channel
 	ExitChan chan bool
@@ -27,20 +28,32 @@ func (c *Connection) StartReader() {
 	for {
 		//读取客户端的数据到buf中
 		buf := make([]byte, 512)
-		cnt, err := c.Conn.Read(buf)
+		_, err := c.Conn.Read(buf)
 		if err != nil {
 			fmt.Println("recv buf err")
 			continue
 		}
-		//调用当前连接绑定的handleApi
-		err = c.handleApi(c.Conn, buf, cnt)
-		if err != nil {
-			fmt.Println("ConnId handle is error", err)
-			break
+
+		//得到当前客户端请求的request数据
+		req := Request{
+			conn: c,
+			data: buf,
 		}
 
-	}
+		//从路由routers中找到注册绑定Conn对应的Handle
+		go func(request ziface.IRequest) {
+			c.Router.PreHandle(request)
+			c.Router.Handle(request)
+			c.Router.PostHandle(request)
+		}(&req)
 
+		////调用当前连接绑定的handleApi
+		//err = c.handleApi(c.Conn, buf, cnt)
+		//if err != nil {
+		//	fmt.Println("ConnId handle is error", err)
+		//	break
+		//}
+	}
 }
 
 func (c *Connection) Start() {
@@ -48,6 +61,13 @@ func (c *Connection) Start() {
 	//启动从当前连接的读数据业务
 	go c.StartReader()
 	//todo:启动从当前连接写数据的业务
+	for {
+		select {
+		case <-c.ExitChan:
+			//得到退出消息 不再阻塞
+			return
+		}
+	}
 
 }
 
@@ -62,6 +82,9 @@ func (c *Connection) Stop() {
 	c.IsClosed = true
 	c.Conn.Close()
 
+	//通知从缓冲队列读取数据的业务，该链接已经关闭
+	c.ExitChan <- true
+
 	//回收资源
 	close(c.ExitChan)
 }
@@ -73,19 +96,19 @@ func (c *Connection) GetConnID() uint32 {
 	return c.ConnID
 }
 func (c *Connection) RemoteAddr() net.Addr {
-	return nil
+	return c.Conn.RemoteAddr()
 }
 func (c *Connection) Send(data []byte) error {
 	return nil
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, handleFunc ziface.HandleFunc) *Connection {
+func NewConnection(conn *net.TCPConn, connID uint32, router ziface.IRouter) *Connection {
 	c := &Connection{
-		Conn:      conn,
-		ConnID:    connID,
-		handleApi: handleFunc,
-		IsClosed:  false,
-		ExitChan:  make(chan bool, 1),
+		Conn:     conn,
+		ConnID:   connID,
+		Router:   router,
+		IsClosed: false,
+		ExitChan: make(chan bool, 1),
 	}
 	return c
 }

@@ -18,6 +18,9 @@ type Server struct {
 	IP string
 	//监听port
 	Port int
+
+	//当前Server由用户绑定的回调router，也就是server注册的链接对应的处理业务
+	Router ziface.IRouter
 }
 
 // 后续由用户指定
@@ -62,7 +65,7 @@ func (s *Server) Start() {
 			}
 
 			//将处理新连接的业务方法和conn进行绑定，得到我们的连接模块
-			dealConn := NewConnection(conn, cid, CallbackClient)
+			dealConn := NewConnection(conn, cid, s.Router)
 
 			cid++
 
@@ -93,13 +96,19 @@ func (s *Server) Serve() {
 	}
 }
 
+func (s *Server) AddRouter(router ziface.IRouter) {
+	s.Router = router
+	fmt.Println("add router success")
+}
+
 // 初始化server
 func NewServer(name string) ziface.IServer {
 	s := &Server{
 		Name:      name,
 		IPVersion: "tcp4",
 		IP:        "0.0.0.0",
-		Port:      8999,
+		Port:      18999,
+		Router:    nil,
 	}
 	return s
 }
