@@ -3,6 +3,7 @@ package znet
 import (
 	"errors"
 	"fmt"
+	"myzinx/utils"
 	"myzinx/ziface"
 	"net"
 	"time"
@@ -36,6 +37,10 @@ func CallbackClient(conn *net.TCPConn, data []byte, cnt int) error {
 // 开启服务
 func (s *Server) Start() {
 	fmt.Printf("[start] server listenner at ip %s, port: %d is starting", s.IP, s.Port)
+	fmt.Printf("[Zinx] Version: %s, MaxConn: %d,  MaxPacketSize: %d\n",
+		utils.GlobalObject.Version,
+		utils.GlobalObject.MaxConn,
+		utils.GlobalObject.MaxPacketSize)
 
 	//避免单个阻塞，支持多客户端连接
 	go func() {
@@ -102,12 +107,12 @@ func (s *Server) AddRouter(router ziface.IRouter) {
 }
 
 // 初始化server
-func NewServer(name string) ziface.IServer {
+func NewServer() ziface.IServer {
 	s := &Server{
-		Name:      name,
+		Name:      utils.GlobalObject.Name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
-		Port:      18999,
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
 		Router:    nil,
 	}
 	return s

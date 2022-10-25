@@ -26,10 +26,6 @@ type GlobalObj struct {
 */
 var GlobalObject *GlobalObj
 
-func init() {
-
-}
-
 func (g *GlobalObj) Reload() {
 	data, err := os.ReadFile("conf/myzinx.json")
 	if err != nil {
