@@ -1,7 +1,9 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"myzinx/ziface"
 	"net"
 )
@@ -26,18 +28,42 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 
 	for {
-		//读取客户端的数据到buf中
-		buf := make([]byte, 512)
-		_, err := c.Conn.Read(buf)
-		if err != nil {
-			fmt.Println("recv buf err")
+
+		//创建拆包解包对象
+		dp := NewDataPack()
+
+		//读取客户端的msg
+		headData := make([]byte, dp.GetHeadLen())
+		if _, err := io.ReadFull(c.GetTCPConnection(), headData); err != nil {
+			fmt.Println("read msg head error ", err)
+			c.ExitChan <- true
 			continue
 		}
+
+		//拆包 得到MSGID 和dataLen放在msg中
+		msg, err := dp.UnPack(headData)
+		if err != nil {
+			fmt.Println("unpack headData error ", err)
+			c.ExitChan <- true
+			continue
+		}
+
+		//根据dataLen读取data 放在msg.data中
+		var data []byte
+		if msg.GetDataLen() > 0 {
+			data = make([]byte, msg.GetDataLen())
+			if _, err := io.ReadFull(c.GetTCPConnection(), data); err != nil {
+				fmt.Println("read msg full data error ", err)
+				c.ExitChan <- true
+				continue
+			}
+		}
+		msg.SetData(data)
 
 		//得到当前客户端请求的request数据
 		req := Request{
 			conn: c,
-			data: buf,
+			msg:  msg,
 		}
 
 		//从路由routers中找到注册绑定Conn对应的Handle
@@ -46,13 +72,6 @@ func (c *Connection) StartReader() {
 			c.Router.Handle(request)
 			c.Router.PostHandle(request)
 		}(&req)
-
-		////调用当前连接绑定的handleApi
-		//err = c.handleApi(c.Conn, buf, cnt)
-		//if err != nil {
-		//	fmt.Println("ConnId handle is error", err)
-		//	break
-		//}
 	}
 }
 
@@ -98,7 +117,25 @@ func (c *Connection) GetConnID() uint32 {
 func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
 }
-func (c *Connection) Send(data []byte) error {
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.IsClosed == true {
+		return errors.New("connection closed")
+	}
+
+	dp := NewDataPack()
+	msg, err := dp.Pack(NewMessagePackage(msgId, data))
+	if err != nil {
+		fmt.Println("pack error ", err)
+		return err
+	}
+
+	//写回客户端
+	if _, err := c.Conn.Write(msg); err != nil {
+		fmt.Println("write msg failed", err, "msgid", msgId)
+		c.ExitChan <- true
+		return err
+	}
+
 	return nil
 }
 
