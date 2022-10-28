@@ -44,6 +44,9 @@ func (s *Server) Start() {
 
 	//避免单个阻塞，支持多客户端连接
 	go func() {
+
+		s.msgHandler.StartWorkerPool()
+
 		//1、获取一个tcp的addr
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {

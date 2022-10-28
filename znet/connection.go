@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"myzinx/utils"
 	"myzinx/ziface"
 	"net"
 )
@@ -69,8 +70,12 @@ func (c *Connection) StartReader() {
 			msg:  msg,
 		}
 
-		//从路由routers中找到注册绑定Conn对应的Handle
-		go c.MsgHandler.DoMsgHandler(&req)
+		if utils.GlobalObject.WorkerPoolSize > 0 {
+			c.MsgHandler.SendMsgToTaskQueue(&req)
+		} else {
+			//从路由routers中找到注册绑定Conn对应的Handle
+			go c.MsgHandler.DoMsgHandler(&req)
+		}
 	}
 }
 
@@ -87,7 +92,6 @@ func (c *Connection) Start() {
 			return
 		}
 	}
-
 }
 
 func (c *Connection) Stop() {

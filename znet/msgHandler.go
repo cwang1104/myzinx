@@ -2,17 +2,22 @@ package znet
 
 import (
 	"fmt"
+	"myzinx/utils"
 	"myzinx/ziface"
 	"strconv"
 )
 
 type MsgHandle struct {
-	Apis map[uint32]ziface.IRouter //存放每个msgID对应的处理方法
+	Apis           map[uint32]ziface.IRouter //存放每个msgID对应的处理方法
+	WorkerPoolSize uint32                    //业务工作worker池的数量
+	TaskQueue      []chan ziface.IRequest    //worker负责取任务的消息队列
 }
 
 func NewMsgHandle() *MsgHandle {
 	return &MsgHandle{
-		Apis: make(map[uint32]ziface.IRouter),
+		Apis:           make(map[uint32]ziface.IRouter),
+		WorkerPoolSize: utils.GlobalObject.WorkerPoolSize,
+		TaskQueue:      make([]chan ziface.IRequest, utils.GlobalObject.WorkerPoolSize),
 	}
 }
 
@@ -40,4 +45,31 @@ func (mh *MsgHandle) AddRouter(msgId uint32, router ziface.IRouter) {
 
 	mh.Apis[msgId] = router
 	fmt.Println("add api msgId = ", msgId)
+}
+
+func (mh *MsgHandle) StartOneWorker(workerId int, taskQueue chan ziface.IRequest) {
+	fmt.Println("WorkerId start ", workerId)
+	for {
+		select {
+		case request := <-taskQueue:
+			mh.DoMsgHandler(request)
+
+		}
+	}
+}
+
+func (mh *MsgHandle) StartWorkerPool() {
+	for i := 0; i < int(mh.WorkerPoolSize); i++ {
+		mh.TaskQueue[i] = make(chan ziface.IRequest, utils.GlobalObject.MaxWorkerTaskLen)
+		go mh.StartOneWorker(i, mh.TaskQueue[i])
+	}
+}
+
+func (mh *MsgHandle) SendMsgToTaskQueue(request ziface.IRequest) {
+
+	workerID := request.GetConnection().GetConnID() % mh.WorkerPoolSize
+	fmt.Println("Add ConnID=", request.GetConnection().GetConnID(), " request msgID=", request.GetMsgID(), "to workerID=", workerID)
+
+	mh.TaskQueue[workerID] <- request
+
 }

@@ -14,31 +14,31 @@ func NewMessagePackage(id uint32, data []byte) *Message {
 	}
 }
 
-func (msg *Message) GetDataLen() uint32 {
-	return msg.DataLen
+func (mh *Message) GetDataLen() uint32 {
+	return mh.DataLen
 }
 
 // 获取消息ID
-func (msg *Message) GetMsgId() uint32 {
-	return msg.Id
+func (mh *Message) GetMsgId() uint32 {
+	return mh.Id
 }
 
 // 获取消息内容
-func (msg *Message) GetData() []byte {
-	return msg.Data
+func (mh *Message) GetData() []byte {
+	return mh.Data
 }
 
 // 设置消息数据段长度
-func (msg *Message) SetDataLen(len uint32) {
-	msg.DataLen = len
+func (mh *Message) SetDataLen(len uint32) {
+	mh.DataLen = len
 }
 
 // 设计消息ID
-func (msg *Message) SetMsgId(msgId uint32) {
-	msg.Id = msgId
+func (mh *Message) SetMsgId(msgId uint32) {
+	mh.Id = msgId
 }
 
 // 设计消息内容
-func (msg *Message) SetData(data []byte) {
-	msg.Data = data
+func (mh *Message) SetData(data []byte) {
+	mh.Data = data
 }
