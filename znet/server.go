@@ -22,6 +22,9 @@ type Server struct {
 
 	//当前Server由用户绑定的回调router，也就是server注册的链接对应的处理业务
 	msgHandler ziface.IMsgHandle
+
+	//集成连接管理
+	ConnMgr ziface.IConManager
 }
 
 // 后续由用户指定
@@ -72,6 +75,12 @@ func (s *Server) Start() {
 				continue
 			}
 
+			//超过最大连接数则直接关闭连接
+			if s.ConnMgr.Len() >= utils.GlobalObject.MaxConn {
+				conn.Close()
+				continue
+			}
+
 			//将处理新连接的业务方法和conn进行绑定，得到我们的连接模块
 			dealConn := NewConnection(conn, cid, s.msgHandler)
 
@@ -88,7 +97,7 @@ func (s *Server) Start() {
 // 停止服务
 func (s *Server) Stop() {
 	fmt.Println("[stop] ", s.Name)
-
+	s.ConnMgr.ClearConn()
 }
 
 // 运行服务
@@ -109,6 +118,10 @@ func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
 	fmt.Println("add router success")
 }
 
+func (s *Server) GetConnMgr() ziface.IConManager {
+	return s.ConnMgr
+}
+
 // 初始化server
 func NewServer() ziface.IServer {
 	s := &Server{
@@ -117,6 +130,7 @@ func NewServer() ziface.IServer {
 		IP:         utils.GlobalObject.Host,
 		Port:       utils.GlobalObject.TcpPort,
 		msgHandler: NewMsgHandle(),
+		ConnMgr:    NewConnManager(),
 	}
 	return s
 }

@@ -10,6 +10,9 @@ import (
 )
 
 type Connection struct {
+	//当前连接属于哪个server
+	TcpServer ziface.IServer
+
 	Conn   *net.TCPConn
 	ConnID uint32
 
@@ -23,6 +26,9 @@ type Connection struct {
 
 	//无缓冲管道，用于读、写两个goroutine之间的消息通信
 	msgChan chan []byte
+
+	//有缓冲通道 用于读、写两个goroutine之间的通信
+	msgBuffChan chan []byte
 }
 
 // 连接的读业务方法
@@ -108,6 +114,8 @@ func (c *Connection) Stop() {
 	//通知从缓冲队列读取数据的业务，该链接已经关闭
 	c.ExitChan <- true
 
+	//将该连接从连接管理器中删除
+	c.TcpServer.GetConnMgr().Remove(c)
 	//回收资源
 	close(c.ExitChan)
 }
@@ -155,21 +163,51 @@ func (c *Connection) StartWriter() {
 				fmt.Println("send data failed", err)
 				return
 			}
+		case data, ok := <-c.msgBuffChan:
+			if ok {
+				if _, err := c.Conn.Write(data); err != nil {
+					fmt.Println("Send Buff Data error:, ", err, " Conn Writer exit")
+					return
+				}
+			} else {
+				fmt.Println("msgBuffChan is Closed")
+				break
+			}
+
 		case <-c.ExitChan:
 			return
 		}
 	}
+}
 
+func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
+	if c.IsClosed == true {
+		return errors.New("connection is closed")
+	}
+
+	dp := NewDataPack()
+	msg, err := dp.Pack(NewMessagePackage(msgId, data))
+	if err != nil {
+		fmt.Println("Pack error msg id = ", msgId)
+		return errors.New("Pack error msg ")
+	}
+	c.msgBuffChan <- msg
+	return nil
 }
 
 func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
-		Conn:       conn,
-		ConnID:     connID,
-		MsgHandler: msgHandler,
-		IsClosed:   false,
-		ExitChan:   make(chan bool, 1),
-		msgChan:    make(chan []byte),
+		Conn:        conn,
+		ConnID:      connID,
+		MsgHandler:  msgHandler,
+		IsClosed:    false,
+		ExitChan:    make(chan bool, 1),
+		msgChan:     make(chan []byte),
+		msgBuffChan: make(chan []byte, utils.GlobalObject.MaxPacketSize),
 	}
+
+	//将新创建的conn添加到连接管理中
+	c.TcpServer.GetConnMgr().Add(c)
+
 	return c
 }

@@ -11,4 +11,7 @@ type IServer interface {
 
 	//增加路由功能：给当前服务注册一个路由业务方法，供客户端链接处理使用
 	AddRouter(msgId uint32, router IRouter)
+
+	//得到连接管理方法
+	GetConnMgr() IConManager
 }
