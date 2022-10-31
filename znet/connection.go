@@ -90,6 +90,8 @@ func (c *Connection) Start() {
 	//启动从当前连接的读数据业务
 	go c.StartReader()
 	go c.StartWriter()
+	//创建连接需要处理的业务
+	c.TcpServer.CallOnConnStart(c)
 	//todo:启动从当前连接写数据的业务
 	for {
 		select {
@@ -109,6 +111,7 @@ func (c *Connection) Stop() {
 	}
 
 	c.IsClosed = true
+	c.TcpServer.CallOnConnStop(c)
 	c.Conn.Close()
 
 	//通知从缓冲队列读取数据的业务，该链接已经关闭

@@ -14,4 +14,13 @@ type IServer interface {
 
 	//得到连接管理方法
 	GetConnMgr() IConManager
+
+	//设置该server的连接创建时的hook函数
+	SetOnConnStart(func(IConnection))
+	//设置该Server的连接断开时的Hook函数
+	SetOnConnStop(func(IConnection))
+	//调用连接OnConnStart Hook函数
+	CallOnConnStart(conn IConnection)
+	//调用连接OnConnStop Hook函数
+	CallOnConnStop(conn IConnection)
 }
