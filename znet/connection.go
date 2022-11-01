@@ -198,8 +198,9 @@ func (c *Connection) SendBuffMsg(msgId uint32, data []byte) error {
 	return nil
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
+func NewConnection(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
+		TcpServer:   server,
 		Conn:        conn,
 		ConnID:      connID,
 		MsgHandler:  msgHandler,
@@ -209,6 +210,7 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandl
 		msgBuffChan: make(chan []byte, utils.GlobalObject.MaxPacketSize),
 	}
 
+	fmt.Printf("%+v", c)
 	//将新创建的conn添加到连接管理中
 	c.TcpServer.GetConnMgr().Add(c)
 

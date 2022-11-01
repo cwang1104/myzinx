@@ -90,7 +90,8 @@ func (s *Server) Start() {
 			}
 
 			//将处理新连接的业务方法和conn进行绑定，得到我们的连接模块
-			dealConn := NewConnection(conn, cid, s.msgHandler)
+			fmt.Printf("----%+v\n", conn)
+			dealConn := NewConnection(s, conn, cid, s.msgHandler)
 
 			cid++
 

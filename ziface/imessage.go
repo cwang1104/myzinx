@@ -8,7 +8,7 @@ type IMessage interface {
 	//获取消息内容
 	GetData() []byte
 
-	//设计消息ID
+	//设置消息ID
 	SetMsgId(uint32)
 	//设置消息内容
 	SetData([]byte)
